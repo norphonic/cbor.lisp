@@ -20,6 +20,10 @@
 (defconstant +tag-ratio+ 30)
 (defconstant +tag-complex+ 43000)
 
+;; RFC 8746 signed 16-bit typed arrays, carried in a byte string.
+(defconstant +tag-sint16be+ 73)
+(defconstant +tag-sint16le+ 77)
+
 (defconstant +tag-stringref+ 25)
 (defconstant +tag-shareable+ 28)
 (defconstant +tag-sharedref+ 29)

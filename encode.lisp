@@ -172,6 +172,20 @@
   (write-tag 4 (length value) output)
   (loop for val across value do (%encode val output)))
 
+(defun encode-signed16-array (value output)
+  "Encode a signed 16-bit vector using RFC 8746 tag 77 (little endian)."
+  (declare (type (vector (signed-byte 16)) value)
+           (type memstream output)
+           #.*optimize*)
+  (let ((octets (make-array (* 2 (length value)) :element-type '(unsigned-byte 8))))
+    (loop for sample across value
+          for offset from 0 by 2
+          do (setf (aref octets offset) (ldb (byte 8 0) sample)
+                   (aref octets (1+ offset)) (ldb (byte 8 8) sample)))
+    (write-tag 6 +tag-sint16le+ output)
+    ;; Use the normal binary encoder to keep string-reference indexes in sync.
+    (encode-binary octets output)))
+
 (defmacro with-dictionary ((output length) &body body)
   (let ((vlength (gensym)))
     `(let ((,vlength ,length))
@@ -367,6 +381,9 @@
           ((vector (unsigned-byte 8))
            (encode-maybe-shared (value output)
              (encode-binary (coerce value 'raw-data) output)))
+          ((vector (signed-byte 16))
+           (encode-maybe-shared (value output)
+             (encode-signed16-array value output)))
           (vector
            (encode-maybe-shared (value output)
              (encode-array value output)))

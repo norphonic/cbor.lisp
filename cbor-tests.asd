@@ -8,4 +8,5 @@
   :components ((:file "test/package")
                (:file "test/utils")
                (:file "test/core")
-               (:file "test/clext")))
+               (:file "test/clext")
+               (:file "test/typed-arrays")))

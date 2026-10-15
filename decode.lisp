@@ -56,6 +56,8 @@
                      into sequences
                    finally (return (apply #'concatenate 'raw-data sequences))))
             (t
+             (when (> size (- (ms-size input) (ms-position input)))
+               (decode-error ("Truncated byte string") input))
              (let ((seq (make-array size :element-type '(unsigned-byte 8))))
                (ms-read-sequence seq input)
                seq)))))
@@ -140,6 +142,30 @@
      (loop for tag = (ms-peek-byte input) until (= tag 255)
            do (funcall callback)
            finally (incf (ms-position input))))))
+
+(defun read-signed16-array (input little-endian-p)
+  "Restore an RFC 8746 signed 16-bit typed array from its tagged byte string."
+  (declare (type memstream input)
+           (type boolean little-endian-p)
+           #.*optimize*)
+  ;; %DECODE isolates the inner byte string from an outer shared-reference tag.
+  ;; The outer tag must cache the resulting typed array, not its packed bytes.
+  (let ((octets (%decode input)))
+    (unless (typep octets 'raw-data)
+      (decode-error ("Expected byte string for signed 16-bit typed array") input))
+    (when (oddp (length octets))
+      (decode-error ("Odd byte string length for signed 16-bit typed array") input))
+    (let ((result (make-array (/ (length octets) 2) :element-type '(signed-byte 16))))
+      (loop for index below (length result)
+            for offset from 0 by 2
+            for first = (aref octets offset)
+            for second = (aref octets (1+ offset))
+            for sample = (if little-endian-p
+                             (logior first (ash second 8))
+                             (logior (ash first 8) second))
+            do (setf (aref result index)
+                     (if (logbitp 15 sample) (- sample #x10000) sample)))
+      result)))
 
 (defun read-array (input size &optional indefinite-size)
   (declare (type memstream input)
@@ -377,6 +403,8 @@
     (#.+tag-shareable+ (with-decode-shareable (%decode-no-shareable input)))
     (#.+tag-ratio+ (read-ratio input))
     (#.+tag-complex+ (read-complex input))
+    (#.+tag-sint16be+ (read-signed16-array input nil))
+    (#.+tag-sint16le+ (read-signed16-array input t))
     (#.+tag-symbol+ (read-symbol input))
     (#.+tag-list+ (read-list* input))
     (#.+tag-character+ (read-character input))

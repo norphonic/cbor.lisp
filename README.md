@@ -98,6 +98,27 @@ Sequences of type `(vector (unsigned-byte 8))` will be encoded as binary — “
 string”
 ([major type 2](https://datatracker.ietf.org/doc/html/rfc8949#name-major-types)).
 
+## Signed 16-bit typed arrays
+
+Vectors of type `(vector (signed-byte 16))` use the existing
+[RFC 8746 typed-array tags](https://www.rfc-editor.org/rfc/rfc8746.html#section-2).
+The encoder writes tag 77 followed by a byte string of packed little-endian,
+two's-complement samples, independently of the host's byte order. The decoder
+accepts both tag 77 (little endian) and tag 73 (big endian), returning a
+`(simple-array (signed-byte 16) (*))`. The byte string must have an even length.
+
+This applies in both strict and non-strict modes. Shared references are preserved;
+ordinary vectors and unsigned-byte-8 vectors retain their existing encodings.
+For adjustable or displaced vectors, only the active elements are serialized;
+the result is a simple array without a fill pointer or displacement.
+
+A 256-sample typed array takes 517 bytes before surrounding object metadata and
+reference wrappers: 512 sample bytes plus five bytes for the tag and byte-string
+header. Older versions of this library do not understand these tags, so update
+decoders before sending signed-16 vectors with the new encoder. Previously stored
+ordinary CBOR arrays still decode as general vectors; they do not contain enough
+type information to recover the original specialized element type automatically.
+
 Besides the major types, we support timestamps and bignums. As `LOCAL-TIME` is
 the de-facto time manipulation library for CL, we encode a
 `LOCAL-TIME:TIMESTAMP` object using the extended tag `1` and double-float
